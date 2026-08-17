@@ -3,26 +3,23 @@ build/
 .gradle/
 bin/
 out/
-
 # Logs and runtime data
 logs/
 run/
 *.log
-
 # IDE files
 .idea/
 .project
+.project/
 .classpath
 .settings/
 *.iml
 *.ipr
 *.iws
 .vscode/
-
 # OS files
 .DS_Store
 Thumbs.db
-
 # Secrets and credentials
 *.key
 *.token
@@ -34,17 +31,13 @@ auth.json
 local.properties
 *.properties
 !gradle.properties
-
 # Gradle wrapper
 !gradle/wrapper/gradle-wrapper.jar
 !gradle/wrapper/gradle-wrapper.properties
-
 # Compiled jars
-# We ignore all jars by default but allow the ones provided by the user
 *.jar
 !compatmod-1.21.1-8.2.0.jar
 !compatmod-1.21.1-8.2.0-sources.jar
-
 # Project specific
 data/
 *.tmp
