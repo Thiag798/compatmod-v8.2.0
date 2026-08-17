@@ -1,61 +1,98 @@
 # CompatMod v8.2.0
 
-O **CompatMod** é um mod de compatibilidade avançado para Minecraft Forge, projetado para resolver conflitos de renderização e problemas de modelos entre diferentes mods. A versão 8.2.0 representa uma reescrita estrutural focada em robustez, performance e facilidade de manutenção.
+O **CompatMod** é um mod de compatibilidade para Minecraft Forge 1.21.1. Ele aplica ajustes controlados durante o processo de bake dos modelos para reduzir conflitos visuais e problemas de renderização causados por modelos de blocos de diferentes mods.
 
-## ✨ Funcionalidades
+A versão 8.2.0 concentra-se em robustez, diagnóstico e recuperação segura. O projeto não utiliza um sistema Mixin próprio para aplicar os patches descritos neste README. O fluxo atual usa eventos do Forge durante o bake dos modelos e envolve os modelos resultantes com `BakedModelWrapper` quando é necessário alterar propriedades de renderização.
 
-*   **Ajustes Visuais Dinâmicos**: Aplica patches em tempo real nos modelos JSON do Minecraft para corrigir problemas visuais comuns, como:
-    *   `glass_cullface`: Melhora a renderização de blocos de vidro e painéis.
-    *   `ambient_occlusion_disable`: Ajusta a iluminação em folhagens e plantas.
-    *   `uv_normalization`: Corrige distorções de textura em modelos do tipo cross/flower.
-*   **Sistema de Mixin Robusto**: Utiliza injeções seguras no `ModelBakery` para interceptar o carregamento de modelos sem comprometer a estabilidade do jogo.
-*   **Safe Mode**: Mecanismo de segurança que desativa automaticamente as transformações em caso de falhas críticas detectadas.
-*   **Cache Inteligente**: Sistema de cache LRU para minimizar o impacto na performance durante o carregamento de modelos.
-*   **Configuração Flexível**: Permite desativar patches específicos ou colocar mods em uma blacklist via arquivo de configuração `.toml`.
+## Requisitos
 
-## 🛠️ Requisitos
+| Componente | Versão/configuração |
+|---|---|
+| Minecraft | 1.21.1 |
+| Forge | **52.1.0**, versão usada no desenvolvimento e na validação do projeto |
+| Java | 21 |
 
-*   **Minecraft**: 1.21.1
-*   **Forge**: 52.0.47+
-*   **Java**: 21
+A configuração de build declara uma faixa de carregamento Forge iniciada em 52, mas a versão efetivamente configurada no projeto é **52.1.0**. Versões diferentes do Forge não devem ser consideradas compatíveis sem validação adicional.
 
-## 🚀 Instalação
+## Funcionalidades
 
-1.  Baixe o arquivo JAR da versão 8.2.0.
-2.  Coloque o arquivo na pasta `mods` da sua instância do Minecraft Forge 1.21.1.
-3.  Inicie o jogo normalmente.
+O CompatMod mantém um registro de patches aplicáveis a modelos e oferece os seguintes comportamentos:
 
-## 💻 Comandos
+- **Correção de modelos de vidro:** identifica modelos relacionados a vidro e painéis de vidro e pode ajustar culling, transparência e ambient occlusion.
+- **Controle de ambient occlusion:** desativa ambient occlusion em modelos de folhas, vegetação e determinados modelos florais quando o patch correspondente é aplicado.
+- **Compatibilidade de modelos:** permite aplicar regras específicas a modelos cujos caminhos correspondam aos predicados registrados.
+- **Cache de modelos:** acompanha modelos processados para reduzir trabalho repetido e disponibiliza estatísticas para diagnóstico.
+- **Blacklist:** permite excluir modelos específicos do processamento.
+- **Safe mode:** suspende os patches quando o modo seguro está ativo, permitindo investigar problemas sem remover o mod da instância.
+- **Log de transformações:** registra as transformações aplicadas no arquivo de configuração do mod quando o logging correspondente está habilitado.
 
-O mod adiciona o comando `/compatmod` para gerenciamento in-game:
+## Como o patch de modelos funciona
 
-*   `/compatmod status`: Exibe o estado atual do mod e patches ativos.
-*   `/compatmod cache`: Mostra estatísticas do cache de transformações.
-*   `/compatmod reload`: Recarrega as configurações e patches (útil para desenvolvimento).
+Durante o carregamento dos modelos, o `ModelBakeListener` observa os modelos produzidos pelo Forge e compara o identificador de cada modelo com os patches registrados em `CompatRegistry`. Quando há correspondência e o modelo não está na blacklist, o CompatMod aplica os ajustes configurados.
 
-## 🔧 Para Desenvolvedores
+Para alterações que precisam afetar propriedades de renderização, o mod utiliza `CompatBakedModel`, baseado no utilitário público `BakedModelWrapper` do Forge. O wrapper delega o comportamento não alterado ao modelo original e protege chamadas de renderização sensíveis contra falhas de linkage ou runtime, evitando que um problema de compatibilidade derrube o jogo sem registro.
 
-### Compilação
+Esse mecanismo é diferente de uma injeção Mixin. Portanto, instruções ou diagnósticos que pressupõem um arquivo de configuração Mixin específico não se aplicam à implementação atual deste projeto.
 
-Para compilar o projeto localmente, utilize o Gradle:
+## Instalação
+
+Baixe o JAR de produção correspondente ao projeto e coloque-o na pasta `mods` de uma instância Minecraft Forge 1.21.1 usando Java 21. Inicie o jogo e consulte o log para verificar se os modelos foram processados.
+
+Para investigar um problema, mantenha uma cópia do `latest.log` e do arquivo de configuração do CompatMod. Se o problema desaparecer com o safe mode ativado, reative os patches individualmente ou use a blacklist para isolar o modelo responsável.
+
+## Comandos
+
+Os comandos abaixo são registrados sob `/compatmod` e devem ser executados por uma fonte com permissão adequada:
+
+| Comando | Função |
+|---|---|
+| `/compatmod status` | Exibe o estado do mod, a quantidade de patches carregados e quantos foram aplicados na sessão. |
+| `/compatmod cache` | Exibe estatísticas do cache de modelos, incluindo modelos armazenados e processados. |
+| `/compatmod reload` | Recarrega a configuração e o registro de patches. |
+| `/compatmod safemode` | Alterna o safe mode. Quando ativo, os patches ficam suspensos. |
+| `/compatmod blacklist add <model>` | Adiciona um modelo à blacklist; por exemplo, `/compatmod blacklist add minecraft:block/stone`. |
+| `/compatmod blacklist remove <model>` | Remove um modelo da blacklist. |
+| `/compatmod blacklist list` | Lista os modelos atualmente bloqueados. |
+| `/compatmod patches` | Lista os patches ativos no registro do CompatMod. |
+
+O argumento `<model>` deve ser informado como identificador de recurso, normalmente no formato `namespace:path`, como `minecraft:block/stone` ou `meumod:block/meu_modelo`.
+
+## Compilação
+
+O projeto utiliza Gradle e inclui o wrapper para Linux e Windows. Para compilar uma versão limpa, execute:
 
 ```bash
 ./gradlew clean build
 ```
 
-O JAR reobfuscado para produção estará disponível em `build/libs/`.
+No Windows, utilize:
 
-### Testes
+```bat
+gradlew.bat clean build
+```
 
-O projeto inclui uma suíte de testes unitários para validar a lógica de aplicação de patches:
+O JAR de produção e o JAR de fontes são gerados em `build/libs/`. O workflow de CI utiliza Java 21 e executa o build em ambiente Ubuntu quando uma release é criada.
+
+## Testes
+
+Os testes unitários podem ser executados com:
 
 ```bash
 ./gradlew test
 ```
 
-## 📄 Licença
+A suíte atual valida principalmente a seleção dos patches registrados e a presença dos componentes de safe mode. Esses testes não substituem uma validação de integração em uma instância real de Minecraft Forge. A compatibilidade com outras versões do Forge ou com combinações específicas de mods deve ser confirmada separadamente.
 
-Este projeto está sob a licença definida no arquivo `LICENSE` (se disponível) ou segue os termos padrão de uso da equipe CompatMod.
+## Diagnóstico e limitações
+
+O CompatMod foi projetado para reduzir conflitos de modelos, mas não pode garantir compatibilidade universal com todos os mods, resource packs, shaders ou versões do Forge. Em caso de falha, primeiro consulte o log, ative o safe mode e teste a blacklist para identificar o modelo ou patch envolvido.
+
+Ao relatar um problema, informe a versão do Minecraft, a versão exata do Forge, a versão do Java, a lista mínima de mods envolvidos e os trechos relevantes de `latest.log` e `compatmod-transforms.log`, quando este último estiver habilitado.
+
+## Licença
+
+A licença aplicável deve ser consultada no arquivo de licença distribuído com o projeto, quando presente. O README não presume uma licença específica na ausência desse arquivo.
 
 ---
-*Desenvolvido com foco em compatibilidade e performance para a comunidade Minecraft.*
+
+Desenvolvido para facilitar a identificação e o tratamento de incompatibilidades de modelos no ecossistema Minecraft Forge.
